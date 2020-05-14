@@ -7,6 +7,8 @@ pub mod io;
 
 pub mod init;
 
+pub mod memory;
+
 mod context;
 
 mod interrupt;
