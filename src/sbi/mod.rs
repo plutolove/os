@@ -25,14 +25,14 @@ fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
 
 pub fn set_timer(stime_value: u64) {
     #[cfg(target_pointer_width = "32")]
-        sbi_call(
+    sbi_call(
         SBI_SET_TIMER,
         stime_value as usize,
         (stime_value >> 32) as usize,
         0,
     );
     #[cfg(target_pointer_width = "64")]
-        sbi_call(SBI_SET_TIMER, stime_value as usize, 0, 0);
+    sbi_call(SBI_SET_TIMER, stime_value as usize, 0, 0);
 }
 
 pub fn console_putchar(ch: usize) {

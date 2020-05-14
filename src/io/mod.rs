@@ -1,5 +1,5 @@
-use core::fmt::{self, Write};
 use crate::sbi;
+use core::fmt::{self, Write};
 
 pub fn putchar(ch: char) {
     sbi::console_putchar(ch as u8 as usize);

@@ -9,6 +9,6 @@ pub mod init;
 
 mod context;
 
+mod interrupt;
 mod lang_items;
 mod sbi;
-mod interrupt;
