@@ -1,5 +1,4 @@
 use core::panic::PanicInfo;
-use crate::io;
 
 // This function is called on panic.
 #[panic_handler]
