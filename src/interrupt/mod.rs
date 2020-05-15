@@ -25,11 +25,24 @@ pub fn init() {
     println!("------------ init interrupt! -------------");
 }
 
+fn page_fault(tf: &mut StackFrame) {
+    println!(
+        "{:?} va = {:#x} instruction = {:#x}",
+        tf.scause.cause(),
+        tf.stval,
+        tf.sepc
+    );
+    panic!("page fault!");
+}
+
 #[no_mangle]
 fn trap_handler(sf: &mut StackFrame) {
     match sf.scause.cause() {
         Trap::Exception(Exception::Breakpoint) => breakpoint(&mut sf.sepc),
         Trap::Interrupt(Interrupt::SupervisorTimer) => timer_handler(),
+        Trap::Exception(Exception::InstructionPageFault) => page_fault(sf),
+        Trap::Exception(Exception::LoadPageFault) => page_fault(sf),
+        Trap::Exception(Exception::StorePageFault) => page_fault(sf),
         _ => panic!("undefined trap"),
     }
 }
@@ -48,5 +61,33 @@ fn timer_handler() {
             TICKS = 0;
             println!("* 100 ticks *");
         }
+    }
+}
+
+#[inline(always)]
+pub fn disable_and_store() -> usize {
+    let sstatus: usize;
+    unsafe {
+        // clear sstatus 的 SIE 标志位禁用异步中断
+        // 返回 clear 之前的 sstatus 状态
+        llvm_asm!("csrci sstatus, 1 << 1" : "=r"(sstatus) ::: "volatile");
+    }
+    sstatus
+}
+
+#[inline(always)]
+pub fn restore(flags: usize) {
+    unsafe {
+        // 将 sstatus 设置为 flags 的值
+        llvm_asm!("csrs sstatus, $0" :: "r"(flags) :: "volatile");
+    }
+}
+
+#[inline(always)]
+pub fn enable_and_wfi() {
+    unsafe {
+        // set sstatus 的 SIE 标志位启用异步中断
+        // 并通过 wfi 指令等待下一次异步中断的到来
+        llvm_asm!("csrsi sstatus, 1 << 1; wfi" :::: "volatile");
     }
 }

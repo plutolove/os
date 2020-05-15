@@ -1,40 +1,70 @@
+use crate::consts::MAX_PHYSICAL_PAGES;
 use spin::Mutex;
-use super::MAX_PHYSICAL_PAGES;
 
-pub const MAX_BITS: usize = MAX_PHYSICAL_PAGES/8 + 1;
-
-
-pub struct SegFrameAlloc {
-    vis: [u8; MAX_BITS],
+pub struct SegmentTreeAllocator {
+    a: [u8; MAX_PHYSICAL_PAGES << 1],
+    m: usize,
+    n: usize,
+    offset: usize,
 }
 
-impl SegFrameAlloc {
+impl SegmentTreeAllocator {
     pub fn init(&mut self, l: usize, r: usize) {
-        //println!("{}, {}, {}, {}", MAX_BITS, MAX_PHYSICAL_PAGES, l, r);
-        for i in l..r {
-            let idx = i / 8;
-            let offset = i % 8;
-            self.vis[idx] |= (1 << offset) as u8;
+        self.offset = l - 1;
+        self.n = r - l;
+        self.m = 1;
+        while self.m < self.n + 2 {
+            self.m = self.m << 1;
+        }
+        for i in (1..(self.m << 1)) {
+            self.a[i] = 1;
+        }
+        for i in (1..self.n) {
+            self.a[self.m + i] = 0;
+        }
+        for i in (1..self.m).rev() {
+            self.a[i] = self.a[i << 1] & self.a[(i << 1) | 1];
         }
     }
 
     pub fn alloc(&mut self) -> usize {
-        for i in 0..MAX_PHYSICAL_PAGES {
-            let idx = i / 8;
-            let offset = i % 8;
-            if (self.vis[idx] & (1 << offset) as u8) != 0 {
-                self.vis[idx] ^= ((1 << offset) as u8);
-                return i;
+        // assume that we never run out of physical memory
+        if self.a[1] == 1 {
+            panic!("physical memory depleted!");
+        }
+        let mut p = 1;
+        while p < self.m {
+            if self.a[p << 1] == 0 {
+                p = p << 1;
+            } else {
+                p = (p << 1) | 1;
             }
         }
-        panic!("no page to alloc");
+        let result = p + self.offset - self.m;
+        self.a[p] = 1;
+        p >>= 1;
+        while p > 0 {
+            self.a[p] = self.a[p << 1] & self.a[(p << 1) | 1];
+            p >>= 1;
+        }
+        result
     }
 
     pub fn dealloc(&mut self, n: usize) {
-        let idx = n / 8;
-        let offset = n % 8;
-        self.vis[idx] |= (1 << offset) as u8;
+        let mut p = n + self.m - self.offset;
+        assert!(self.a[p] == 1);
+        self.a[p] = 0;
+        p >>= 1;
+        while p > 0 {
+            self.a[p] = self.a[p << 1] & self.a[(p << 1) | 1];
+            p >>= 1;
+        }
     }
 }
 
-pub static SEG_FRAME_ALLOC: Mutex<SegFrameAlloc>= Mutex::new(SegFrameAlloc { vis: [0; MAX_BITS], });
+pub static SEGMENT_TREE_ALLOCATOR: Mutex<SegmentTreeAllocator> = Mutex::new(SegmentTreeAllocator {
+    a: [0; MAX_PHYSICAL_PAGES << 1],
+    m: 0,
+    n: 0,
+    offset: 0,
+});
