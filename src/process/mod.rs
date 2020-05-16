@@ -96,7 +96,7 @@ use scheduler::RRScheduler;
 use thread_pool::ThreadPool;
 pub fn init() {
     // 使用 Round Robin Scheduler
-    let scheduler = RRScheduler::new(1);
+    let scheduler = RRScheduler::new(2);
     // 新建线程池
     let thread_pool = ThreadPool::new(100, Box::new(scheduler));
     // 新建内核线程 idle ，其入口为 Processor::idle_main
